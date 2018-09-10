@@ -31,6 +31,7 @@ Chat.loadCommands = function () {
 		const plugin = require('./plugins/' + file);
 		Object.assign(Chat.Commands, plugin.commands);
 	}
+	Object.assign(Chat.Commands, Mafia.commands);
 	debug(`${Object.keys(Chat.Commands).length} commands/aliases loaded`);
 };
 
