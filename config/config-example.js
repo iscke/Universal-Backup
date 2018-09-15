@@ -45,6 +45,7 @@ exports.verboseMode = false;
 exports.mafiaDebug = true;
 // Mafia cooldown length. Set to 0 to use default
 exports.MafiaCooldown = 60;
+exports.mafiaAutostart = 2;
 // Developers have access to everything, and are the only ones that can use eval
 exports.developers = ['jumbowhales', 'hoeenhero'];
 

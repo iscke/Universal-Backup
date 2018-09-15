@@ -14,20 +14,26 @@ class Sacrifice4 extends Rooms.RoomGame {
 		this.deadMafia = '';
 		/** @type {string} typescript doesnt want to infer this fsr */
 		this.confirmedTown = '';
-		this.listeners = [
-			Mafia.addMafiaListener(`mafiagame-${room.roomid}-join`, [room.roomid], ['join', 'add'], () => this.onJoin(), true),
-			Mafia.addMafiaListener(`mafiagame-${room.roomid}-kill`, [room.roomid], ['kill'],
-				(/** @type {string} */t, /** @type {string} */r, /** @type {string} */d) => this.onKill(d[0], d[1], d[2])
-				, true),
-			Mafia.addMafiaListener(`mafiagame-${room.roomid}-plur`, [room.roomid], ['plur'],
-				(/** @type {string} */t, /** @type {string} */r, /** @type {string} */p) => this.onPlur(p[0]), true),
-			Mafia.addMafiaListener(`mafiagame-${room.roomid}-end`, [room.roomid], ['gameend'], () => this.destroy(), true),
-			Mafia.addMafiaListener(`mafiagame-${room.roomid}-day`, [room.roomid], ['day'], () => this.onDay(), true),
+		this.MafiaListeners = [
+			Mafia.addMafiaListener(`mafiagame-${room.roomid}-join`, [room.roomid], ['join', 'add'], true,
+				() => this.onJoin()),
+			Mafia.addMafiaListener(`mafiagame-${room.roomid}-kill`, [room.roomid], ['kill'], true,
+				(/** @type {string} */t, /** @type {string} */r, /** @type {string[]} */d) => this.onKill(d[0], d[1], d[2])),
+			Mafia.addMafiaListener(`mafiagame-${room.roomid}-plur`, [room.roomid], ['plur'], true,
+				(/** @type {string} */t, /** @type {string} */r, /** @type {string[]} */d) => this.onPlur(d[0])),
+			Mafia.addMafiaListener(`mafiagame-${room.roomid}-end`, [room.roomid], ['gameend'], true,
+				() => this.destroy()),
+			Mafia.addMafiaListener(`mafiagame-${room.roomid}-day`, [room.roomid], ['day'], true,
+				() => this.onDay()),
+		];
+		this.ChatListeners = [
+			Chat.addListener(`mafia-${room.roomid}-playerroles`, [room.roomid], ['html'], 1,
+				(/** @type {string} */t, /** @type {string} */r, /** @type {string[]} */p) => this.parsePlayerroles(t, r, p)),
 		];
 	}
 	onJoin() {
 		if (this.mafiaGame.aliveCount === 4) {
-			this.sendRoom(`/mafia close\n/mafia setroles sacrifice\n/mafia start\n/mafia enableself hammer\n/mafia disablenl`);
+			this.sendRoom(`/mafia close\n/mafia setroles sacrifice\n/mafia start\n/mafia enableself hammer\n/mafia disablenl\n/mafia playerroles`);
 			this.sendRoom(`The game of sacrifice is starting!`);
 		}
 	}
@@ -69,11 +75,34 @@ class Sacrifice4 extends Rooms.RoomGame {
 		this.sendRoom(`/mafia kill ${player}`);
 	}
 	/**
+	 * @param {string} type
+	 * @param {string} roomid
+	 * @param {string[]} parts
+	 */
+	parsePlayerroles(type, roomid, parts) {
+		const message = parts.join('|');
+		if (message.slice(0, 21) !== `<div class="infobox">` || message.slice(-6) !== `</div>`) return;
+		const lines = message.slice(21, -6).split('<br/>');
+		for (const line of lines) {
+			const parts = line.split(':');
+			if (parts.length < 2) return false;
+			const user = toId(parts[0]);
+			const role = parts.slice(1).join(':').trim();
+			if (!this.mafiaGame.players[user]) return debug(`[MAFIA] playerroles without a valid player "${user}" "${JSON.stringify(parts)}"`);
+			this.mafiaGame.players[user].role = role;
+		}
+		return true;
+	}
+
+	/**
      * @param {string} m
      */
 	destroy(m = '') {
-		for (const l of this.listeners) {
+		for (const l of this.MafiaListeners) {
 			Mafia.removeMafiaListener(l);
+		}
+		for (const l of this.ChatListeners) {
+			Chat.removeListener(l);
 		}
 		if (m) this.sendRoom(m);
 		this.sendRoom('/mafia end');
@@ -81,18 +110,3 @@ class Sacrifice4 extends Rooms.RoomGame {
 	}
 }
 
-/** @typedef {((this: CommandContext, target: string, room: Room?, user: string, cmd: string, message: string) => any)} ChatCommand */
-/** @typedef {{[k: string]: string | ChatCommand}} ChatCommands */
-
-/** @type {ChatCommands} */
-const commands = {
-	sac4: function (target, room, user) {
-		if (!room) return;
-		if (!this.can('eval')) return;
-		if (room.game || room.mafiaTracker) return this.reply(`There is already a game in progress`);
-		room.send(`/mafia host ${Config.nick}`);
-		Mafia.addMafiaListener(`mafiastart-${room.roomid}`, [room.roomid], ['host'], () => { room.game = new Sacrifice4(room); return true; }, 1);
-	},
-};
-
-exports.commands = commands;

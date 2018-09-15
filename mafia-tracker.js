@@ -10,7 +10,7 @@ Mafia.listeners = {};
  * @param {function} callback
  * @param {number | true} repeat
  */
-Mafia.addMafiaListener = function (id, rooms, events, callback, repeat = true) {
+Mafia.addMafiaListener = function (id, rooms, events, repeat, callback) {
 	if (Mafia.listeners[id]) throw new Error(`Trying to add existing mafia listener: '${id}'`);
 	Mafia.listeners[id] = {rooms, events, callback, repeat};
 	return id;
@@ -19,9 +19,9 @@ Mafia.addMafiaListener = function (id, rooms, events, callback, repeat = true) {
  * @param {string} id
  */
 Mafia.removeMafiaListener = function (id) {
-	if (!Mafia.listeners[id]) throw new Error(`Trying to remove nonexistent mafia listener: '${id}'`);
+	if (!Mafia.listeners[id]) return false;
 	delete Mafia.listeners[id];
-	return id;
+	return true;
 };
 
 /**
@@ -115,8 +115,8 @@ function parseHTML(messageType, roomid, parts) {
 
 	let deadline = /^<strong>The deadline has been set for (\d+) minutes\.<\/strong>$/.exec(message);
 	if (deadline) return emitEvent(roomid, 'deadlineset', [deadline[1]], message);
-	deadline = /^<strong>The deadline is in (\d+) minutes(?: (\d+) seconds)?\.$/.exec(message);
-	if (deadline) return emitEvent(roomid, 'deadline', deadline.slice(1, 3), message);
+	deadline = /^<strong>Time is up!<\/strong>$/.exec(message);
+	if (deadline) return emitEvent(roomid, 'deadline', [], message);
 }
 /**
  * @param {string} messageType
@@ -131,10 +131,9 @@ function parseRaw(messageType, roomid, parts) {
 	if (plur) return emitEvent(roomid, 'plur', [plur[1]], message);
 }
 
-Chat.addListener("mafia-events-chat", true, ['chat'], parseChat, true);
-Chat.addListener("mafia-events-html", true, ['html', 'uhtml'], parseHTML, true);
-Chat.addListener("mafia-events-raw", true, ['raw'], parseRaw, true);
-
+Chat.addListener("mafia-events-chat", true, ['chat'], true, parseChat);
+Chat.addListener("mafia-events-html", true, ['html', 'uhtml'], true, parseHTML);
+Chat.addListener("mafia-events-raw", true, ['raw'], true, parseRaw);
 /**
  * @typedef {function} MafiaCallback
  * @param {string[]} details
@@ -151,6 +150,9 @@ class MafiaPlayer extends Rooms.RoomGamePlayer {
 		this.dead = false;
 		this.spirit = false;
 		this.treestump = false;
+
+		this.role = '';
+		this.roleRevealed = false;
 	}
 }
 
@@ -191,7 +193,6 @@ class MafiaTracker extends Rooms.RoomGame {
 	 * @param {string} role
 	 */
 	onKill(type, player, role = '') {
-		console.log(`${type}/${player}/${role}`);
 		const userid = toId(player);
 		this.players[userid].dead = true;
 		this.players[userid].spirit = type.includes('spirit');
@@ -309,6 +310,6 @@ function onEvent(event, roomid, details, message) {
 		debug(`Unknown mafia even ${event}`);
 	}
 }
-Mafia.addMafiaListener('mafiatracker-gamestart', true, ['host'], onGameStart, true);
-Mafia.addMafiaListener('mafiatracker-gameend', true, ['gameend'], onGameEnd, true);
-Mafia.addMafiaListener('mafiatracker-events', true, ['kill', 'add', 'join', 'left', 'revive', 'day', 'night'], onEvent, true);
+Mafia.addMafiaListener('mafiatracker-gamestart', true, ['host'], true, onGameStart);
+Mafia.addMafiaListener('mafiatracker-gameend', true, ['gameend'], true, onGameEnd);
+Mafia.addMafiaListener('mafiatracker-events', true, ['kill', 'add', 'join', 'left', 'revive', 'day', 'night'], true, onEvent);
