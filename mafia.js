@@ -59,24 +59,28 @@ function emitEvent(roomid, event, details, message) {
  * @param {string[]} parts
  */
 function parseChat(messageType, roomid, parts) {
+	/** @type {(event: string, details: string[]) => void} */
+	function emit(event, details) {
+		emitEvent(roomid, event, details, message);
+	}
 	const author = parts[0];
 	const message = parts.slice(1).join('|');
 
 	if (author === '~') {
 		let lynch = /^(.*) has (lynch|unlynch)ed (.*)\.$/.exec(message);
-		if (lynch) return emitEvent(roomid, 'lynch', [lynch[2], lynch[1], lynch[3]], message);
+		if (lynch) return emit('lynch', [lynch[2], lynch[1], lynch[3]]);
 		lynch = /^(.*) has shifted their lynch from (.*) to (.*)$/.exec(message);
-		if (lynch) return emitEvent(roomid, 'lynch', ['shift', ...lynch.slice(1, 4)], message);
+		if (lynch) return emit('lynch', ['shift', ...lynch.slice(1, 4)]);
 		lynch = /^(.*) has abstained from lynching\.$/.exec(message);
-		if (lynch) return emitEvent(roomid, 'lynch', ['nolynch', lynch[1]], message);
+		if (lynch) return emit('lynch', ['nolynch', lynch[1]]);
 		lynch = /^(.*) is no longer abstaining from lynching\.$/.exec(message);
-		if (lynch) return emitEvent(roomid, 'lynch', ['unnolynch', lynch[1]], message);
+		if (lynch) return emit('lynch', ['unnolynch', lynch[1]]);
 
 		const playerList = /^\*\*Players \(\d+\)\*\*: (.*)$/.exec(message);
-		if (playerList) return emitEvent(roomid, 'players', [playerList[1]], message);
+		if (playerList) return emit('players', [playerList[1]]);
 	} else {
 		const host = /^\/log (.*) was appointed the mafia host by (.*)\.$/.exec(message);
-		if (host) return emitEvent(roomid, 'host', [host[1], host[2]], message);
+		if (host) return emit('host', [host[1], host[2]]);
 	}
 }
 
@@ -86,58 +90,63 @@ function parseChat(messageType, roomid, parts) {
  * @param {string[]} parts
  */
 function parseHTML(messageType, roomid, parts) {
+	/** @type {(event: string, details: string[]) => void} */
+	function emit(event, details) {
+		emitEvent(roomid, event, details, message);
+	}
+
 	const message = Tools.unescapeHTML(parts.join('|'));
 	if (message === '<div class="broadcast-blue">The game of Mafia is starting!</div>') return emitEvent(roomid, 'gamestart', [], message);
 	if (message === 'mafia|<div class="infobox">The game of Mafia has ended.</div>') return emitEvent(roomid, 'gameend', [], message);
 
 	let event = /^<div class="broadcast-blue">Night (\d+). PM the host your action, or idle\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'night', [event[1]], message);
+	if (event) return emit('night', [event[1]]);
 	event = /^<div class="broadcast-blue">Day (\d+)\. The hammer count is set at (\d+)<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'day', event.slice(1, 3), message);
+	if (event) return emit('day', event.slice(1, 3));
 
 	event = /^<div class="broadcast-blue">(.+) was kicked from the game!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['kick', event[1]], message);
+	if (event) return emit('kill', ['kick', event[1]]);
 	event = /^<div class="broadcast-blue">(.+) was eliminated!\s?<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['killnoreveal', event[1]], message);
+	if (event) return emit('kill', ['killnoreveal', event[1]]);
 	event = /^<div class="broadcast-blue">(.+) has been treestumped!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['treestump', event[1]], message);
+	if (event) return emit('kill', ['treestump', event[1]]);
 	event = /^<div class="broadcast-blue">(.+) became a restless spirit!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['spirit', event[1]], message);
+	if (event) return emit('kill', ['spirit', event[1]]);
 	event = /^<div class="broadcast-blue">(.+) became a restless treestump!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['spiritstump', event[1]], message);
+	if (event) return emit('kill', ['spiritstump', event[1]]);
 
 	event = /^<div class="broadcast-blue">(.+) was eliminated! .+'s role was <span style="font-weight:bold;color:(.+)">(.+)<\/span>\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'kill', ['kill', event[1], event[3], event[2]], message); // player, role, color
+	if (event) return emit('kill', ['kill', event[1], event[3], event[2]]); // player, role, color
 
 	event = /^<div class="broadcast-blue">(.+) was revived!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'revive', [event[1]], message);
+	if (event) return emit('revive', [event[1]]);
 
 	event = /^<div class="broadcast-blue">(.+) has been added to the game by (.+)!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'add', event.slice(1, 3), message);
+	if (event) return emit('add', event.slice(1, 3));
 
 	event = /^<div class="broadcast-blue">Hammer! (.+) was lynched!<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'hammer', [event[1]], message);
+	if (event) return emit('hammer', [event[1]]);
 
 	event = /^<div class="broadcast-blue">(.*) has been subbed out\. (.*) has joined the game\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'sub', [event[1], event[2]], message);
+	if (event) return emit('sub', [event[1], event[2]]);
 
 	event = /^<div class="broadcast-blue">(.*) has been substituted as the new host, replacing (.*)\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'subhost', [event[1], event[2]], message);
+	if (event) return emit('subhost', [event[1], event[2]]);
 
 	event = /^<div class="broadcast-blue">(.*) has been added as a cohost by (.*)<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'cohost', [event[1], event[2]], message);
+	if (event) return emit('cohost', [event[1], event[2]]);
 	event = /^<div class="broadcast-blue">(.*) was removed as a cohost by (.*)<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'uncohost', [event[1], event[2]], message);
+	if (event) return emit('uncohost', [event[1], event[2]]);
 
 	event = /^<div class="broadcast-blue">The hammer count has been set at (\d+), and lynches have been reset\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'sethammer', ['reset', event[1]], message);
+	if (event) return emit('sethammer', ['reset', event[1]]);
 	event = /^<div class="broadcast-blue">The hammer count has been shifted to (\d+)\. Lynches have not been reset\.<\/div>$/.exec(message);
-	if (event) return emitEvent(roomid, 'sethammer', ['shift', event[1]], message);
+	if (event) return emit('sethammer', ['shift', event[1]]);
 
 	event = /^<strong>The deadline has been set for (\d+) minutes\.<\/strong>$/.exec(message);
-	if (event) return emitEvent(roomid, 'deadlineset', [event[1]], message);
+	if (event) return emit('deadlineset', [event[1]]);
 	event = /^<strong>Time is up!<\/strong>$/.exec(message);
-	if (event) return emitEvent(roomid, 'deadline', [], message);
+	if (event) return emit('deadline', []);
 }
 /**
  * @param {string} messageType
@@ -145,14 +154,18 @@ function parseHTML(messageType, roomid, parts) {
  * @param {string[]} parts
  */
 function parseRaw(messageType, roomid, parts) {
+	/** @type {(event: string, details: string[]) => void} */
+	function emit(event, details) {
+		emitEvent(roomid, event, details, message);
+	}
 	const message = parts.join('|');
 	const leave = /^(.*) has (join|left)(?:ed)? the game\.$/.exec(message);
-	if (leave) return emitEvent(roomid, leave[2], [leave[1]], message);
+	if (leave) return emit(leave[2], [leave[1]]);
 
-	if (message === "The roles have been set.") return emitEvent(roomid, 'setroles', [], message);
+	if (message === "The roles have been set.") return emit('setroles', []);
 
 	const plur = /^Plurality is on (.*)$/.exec(message);
-	if (plur) return emitEvent(roomid, 'plur', [plur[1]], message);
+	if (plur) return emit('plur', [plur[1]]);
 }
 
 Chat.addListener("mafia-events-chat", true, ['chat'], true, parseChat);
