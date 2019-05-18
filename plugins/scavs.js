@@ -13,6 +13,8 @@ let scavQuestions = [];
 let hosts = [];
 let huntLimit = 2;
 
+let showAnswers = false;
+
 /** @type {Map<Room, {huntType: string, host: string}>} */
 const ongoingHunts = new Map();
 
@@ -24,6 +26,7 @@ Chat.events.on('html', (/** @type {Room} */room, /** @type {string[]} */details)
 
 	let res = html.match(FINISH_REGEX);
 	if (res) {
+		if (room.roomid === scavSubroom) return;
 		const [, , sols] = res;
 		let questions = [];
 		for (const line of sols.split('</span>')) {
@@ -51,6 +54,8 @@ Chat.events.on('html', (/** @type {Room} */room, /** @type {string[]} */details)
  * @param {string[]} questions
  * */
 function addHunt(host, questions) {
+	if (!scavSubroom) return false;
+
 	questions[0] = `(Hunt by ${host}) ${questions[0]}`;
 	scavQuestions.unshift(questions);
 	hosts.push(host || 'unknown');
@@ -58,9 +63,23 @@ function addHunt(host, questions) {
 		scavQuestions.pop();
 		hosts.pop();
 	}
-	Chat.sendMessage(scavSubroom, '/resethunt');
+	Chat.sendMessage(scavSubroom, '/endhunt\n/forceendhunt');
 	Chat.sendMessage(scavSubroom, `/startunratedhunt ${Config.nick}|${scavQuestions.reduce((a, b) => a.concat(b)).join('|')}`);
 	Chat.sendMessage(scavSubroom, `Hunts from ${hosts.join(' & ')}`);
+	/*
+	if (showAnswers) {
+		if (scavQuestions.length < 2) return;
+		let buf = '<details><summary>Previous answers:</summary>';
+		for (const prevHunt of scavQuestions.slice(1)) {
+			for (const questionString of prevHunt) {
+				const [question, answer] = questionString.split('|');
+				buf += `<br/><strong>${Tools.escapeHTML(question)}</strong> - <span style="color: lightgreen">${Tools.escapeHTML(answer)}</span>`;
+			}
+		}
+		buf += '</details>';
+		Chat.sendMessage(scavSubroom, `/addhtmlbox ${buf}`);
+	}
+	*/
 }
 
 /** @type {import("../chat").ChatCommands} */
@@ -87,6 +106,12 @@ const commands = {
 			} else {
 				this.reply(`Disabled recycling hunts of ${type}`);
 			}
+		} else if (setting === 'showanswers') {
+			showAnswers = true;
+			this.reply('done');
+		} else if (setting === 'hideanswers') {
+			showAnswers = false;
+			this.reply('done');
 		}
 	},
 };
