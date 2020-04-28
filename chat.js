@@ -157,7 +157,7 @@ function parse(roomid, messageType, parts) {
 		break;
 	case 'error':
 		if (Config.webhookErrorURL) {
-			const content = {content: `Error: ${roomid}|${parts.join('|')}`};
+			const content = `Error: ${roomid}|${parts.join('|')}`;
 			Tools.sendWebhookMessage("discordapp.com", `/api/webhooks/${Config.webhookErrorURL}`, content);
 		}
 		break;

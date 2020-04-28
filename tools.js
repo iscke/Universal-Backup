@@ -393,25 +393,27 @@ Tools.findCode = function (text) {
 /**
  * @param {string} hostname
  * @param {string} path
- * @param {{content?: string}} data
+ * @param {string} content
  */
-Tools.sendWebhookMessage = function (hostname, path, data) {
+Tools.sendWebhookMessage = function (hostname, path, content) {
 	const reqOptions = {
 		hostname,
 		path,
 		agent: false,
 		method: 'POST',
 		headers: {
-			'Content-Type': 'multipart/form-data',
+			'Content-Type': 'application/json',
 		},
 	};
-	const req = https.request(reqOptions, () => {});
+	const req = https.request(reqOptions, (res) => {
+		res.on('data', d => console.log('' + d));
+	});
 
 	req.on('error', e => {
 		console.error(`Error while making request: ${e.stack}`);
 		return;
 	});
-	req.write(JSON.stringify(data));
+	req.write(JSON.stringify({content}));
 	req.end();
 };
 /**

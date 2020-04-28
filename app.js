@@ -69,7 +69,7 @@ global.sendPM = Chat.sendPM;
 if (Config.webhookCrashURL) {
 	process.on('uncaughtException', (e) => {
 		// todo unhardcode discord
-		Tools.sendWebhookMessage("discordapp.com", `/api/webhooks/${Config.webhookCrashURL}`, {content: e.stack});
+		Tools.sendWebhookMessage("discordapp.com", `/api/webhooks/${Config.webhookCrashURL}`, '' + e.stack);
 	});
 }
 
