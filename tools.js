@@ -3,6 +3,7 @@
 const Tools = module.exports;
 
 const crypto = require('crypto');
+const https = require('https');
 
 /**
  * Taken from pokemon-showdown
@@ -387,4 +388,59 @@ Tools.findCode = function (text) {
 		);
 	}
 	return false;
+};
+
+/**
+ * @param {string} hostname
+ * @param {string} path
+ * @param {{content?: string}} data
+ */
+Tools.sendWebhookMessage = function (hostname, path, data) {
+	const reqOptions = {
+		hostname,
+		path,
+		agent: false,
+		method: 'POST',
+		headers: {
+			'Content-Type': 'multipart/form-data',
+		},
+	};
+	const req = https.request(reqOptions, () => {});
+
+	req.on('error', e => {
+		console.error(`Error while making request: ${e.stack}`);
+		return;
+	});
+	req.write(JSON.stringify(data));
+	req.end();
+};
+/**
+ * @param {string} data
+ * @param {string} expiry
+ * @returns {Promise<string>}
+ */
+Tools.uploadPaste = function (data, expiry) {
+	return new Promise((resolve, reject) => {
+		const reqOptions = {
+			hostname: "pastebin.run",
+			path: `/api/v1/pastes`,
+			agent: false,
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded ',
+			},
+		};
+		const req = https.request(reqOptions, res => {
+			let data = "";
+			res.on('data', chunk => {
+				data += chunk;
+			});
+			res.on('end', () => {
+				resolve(data);
+			});
+		});
+		req.on('error', reject);
+		req.write(`code=${encodeURIComponent(data)}&expiration=${encodeURIComponent(expiry)}`);
+		req.end();
+	});
 };

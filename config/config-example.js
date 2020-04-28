@@ -22,7 +22,7 @@ exports.serverid = 'localhost';
 
 // (discord) webhook URL to report crashes in. If not specified, bot will die normally on unhandled exceptions
 exports.webhookCrashURL = '';
-
+exports.webhookErrorURL = '';
 // Time to wait before trying to reconnect in seconds. Set to 0 to disable autoreconnects
 exports.reconnectTime = 5;
 

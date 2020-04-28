@@ -121,6 +121,8 @@ class Lighthouse extends Rooms.RoomGame {
 		console.log('ENDING');
 		this.sendRoom(`The lighthouse game has ended`);
 		this.sendRoom(`!code Logs:\n${this.log.join('\n')}`);
+		Tools.uploadPaste(`Lighthouse logs:\n${this.log.join('\n')}`, "P1D")
+			.then(code => this.sendRoom(`/mn Logs pastebin: pastebin.run/${code}`));
 		if (this.sketchyLog.length) {
 			this.sendRoom(`/addrankhtmlbox, %, <b>Sketchy messages (only staff can see this):</b><br/>${this.sketchyLog.map(Tools.escapeHTML).join('<br/>')}`);
 		}
